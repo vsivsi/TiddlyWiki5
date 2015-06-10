@@ -1,8 +1,7 @@
 title: $:/core/templates/tiddlywiki5.html
 
 \rules only filteredtranscludeinline transcludeinline
-<!doctype html>
-{{$:/core/templates/MOTW.html}}<html>
+{{$:/core/templates/MOTW.html}}
 <head>
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />		<!-- Force IE standards mode for Intranet and HTA - should be the first meta -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
@@ -34,17 +33,4 @@ title: $:/core/templates/tiddlywiki5.html
 </noscript>
 <!--~~ Ordinary tiddlers ~~-->
 {{$:/core/templates/store.area.template.html}}
-<!--~~ Library modules ~~-->
-<div id="libraryModules" style="display:none;">
-{{{ [is[system]type[application/javascript]library[yes]] ||$:/core/templates/javascript-tiddler}}}
-</div>
-<!--~~ Boot kernel prologue ~~-->
-<div id="bootKernelPrefix" style="display:none;">
-{{ $:/boot/bootprefix.js ||$:/core/templates/javascript-tiddler}}
-</div>
-<!--~~ Boot kernel ~~-->
-<div id="bootKernel" style="display:none;">
-{{ $:/boot/boot.js ||$:/core/templates/javascript-tiddler}}
-</div>
 </body>
-</html>

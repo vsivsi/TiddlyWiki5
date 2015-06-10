@@ -463,18 +463,29 @@ Widget.prototype.findFirstDomNode = function() {
 Remove any DOM nodes created by this widget or its children
 */
 Widget.prototype.removeChildDomNodes = function() {
-	// If this widget has directly created DOM nodes, delete them and exit. This assumes that any child widgets are contained within the created DOM nodes, which would normally be the case
+
+	// Call the destructor on this widget
+	this.destructor();
+
+	// If this widget has directly created DOM nodes, that were not handled by
+	// the destructor (still in this.domNodes) delete them now.
 	if(this.domNodes.length > 0) {
 		$tw.utils.each(this.domNodes,function(domNode) {
 			domNode.parentNode.removeChild(domNode);
 		});
 		this.domNodes = [];
-	} else {
-		// Otherwise, ask the child widgets to delete their DOM nodes
-		$tw.utils.each(this.children,function(childWidget) {
-			childWidget.removeChildDomNodes();
-		});
 	}
+
+	// Ask the child widgets to delete their DOM nodes
+	$tw.utils.each(this.children,function(childWidget) {
+		childWidget.removeChildDomNodes();
+	});
+};
+
+/*
+Remove any DOM nodes created by this widget or its children
+*/
+Widget.prototype.destructor = function() {
 };
 
 /*

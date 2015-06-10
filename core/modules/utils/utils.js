@@ -364,9 +364,17 @@ exports.getRelativeDate = function(delta) {
 };
 
 // Convert & to "&amp;", < to "&lt;", > to "&gt;", " to "&quot;"
+// Also convert { and } to entity codes for compatibility with
+// "moustache" templating systems.
 exports.htmlEncode = function(s) {
 	if(s) {
-		return s.toString().replace(/&/mg,"&amp;").replace(/</mg,"&lt;").replace(/>/mg,"&gt;").replace(/\"/mg,"&quot;");
+		return s.toString()
+			.replace(/&/mg,"&amp;")
+			.replace(/</mg,"&lt;")
+			.replace(/>/mg,"&gt;")
+			.replace(/\"/mg,"&quot;")
+			.replace(/\{/mg,"&#x007B;")
+			.replace(/\}/mg,"&#x007D;");
 	} else {
 		return "";
 	}
@@ -377,7 +385,7 @@ exports.entityDecode = function(s) {
 	var e = s.substr(1,s.length-2); // Strip the & and the ;
 	if(e.charAt(0) === "#") {
 		if(e.charAt(1) === "x" || e.charAt(1) === "X") {
-			return String.fromCharCode(parseInt(e.substr(2),16));	
+			return String.fromCharCode(parseInt(e.substr(2),16));
 		} else {
 			return String.fromCharCode(parseInt(e.substr(1),10));
 		}
@@ -593,7 +601,7 @@ High resolution microsecond timer for profiling
 exports.timer = function(base) {
 	var m;
 	if($tw.node) {
-		var r = process.hrtime();		
+		var r = process.hrtime();
 		m =  r[0] * 1e3 + (r[1] / 1e6);
 	} else if(window.performance) {
 		m = performance.now();
