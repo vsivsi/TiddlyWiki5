@@ -26,7 +26,7 @@
   "dependencies": {},
   "devDependencies": {},
   "bundleDependencies": [],
-  "license": "BSD",
+  "license": "BSD-2-Clause",
   "engines": {
     "node": ">=0.8.2"
   }
