@@ -1,0 +1,5 @@
+title: $:/plugins/vsivsi/meteor/readme
+
+This plugin provides custom adaptations to TW5 making it possible to run a TiddleWiki under Meteor.js, including use of live updating Blaze templates and sync'ed storage to the MongoDB instance.
+
+[[Source code|https://github.com/vsivsi/TiddlyWiki5/blob/master/plugins/vsivsi/meteor]]

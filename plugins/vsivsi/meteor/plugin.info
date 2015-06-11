@@ -1,0 +1,7 @@
+{
+	"title": "$:/plugins/vsivsi/meteor",
+	"description": "Adaptations to TW5 to support Meteor.js",
+	"author": "vsivsi",
+	"core-version": ">=5.0.0",
+	"list": "readme"
+}
