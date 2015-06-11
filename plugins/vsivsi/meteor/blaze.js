@@ -33,10 +33,22 @@ BlazeWidget.prototype.render = function(parent,nextSibling) {
 	this.computeAttributes();
 	this.execute();
 	var name = this.getAttribute("name",this.parseTreeNode.name || "");
+	var data = this.getAttribute("data",this.parseTreeNode.data || "");
 	var domNode = this.document.createElement("div");
 	domNode.setAttribute("class","blaze-widget");
 	parent.insertBefore(domNode,nextSibling);
-	this.view = Blaze.render(Template[name], domNode);
+	if (data) {
+		var dataObj = null
+		try {
+			// Try to make it an object from JSON
+			dataObj = JSON.parse(data);
+		} catch (e) {
+			dataObj = { data: data };
+		}
+		this.view = Blaze.renderWithData(Template[name], dataObj, domNode);
+	} else {
+		this.view = Blaze.render(Template[name], domNode);
+	}
 	this.renderChildren(domNode,null);
 	this.domNodes.push(domNode);
 };
