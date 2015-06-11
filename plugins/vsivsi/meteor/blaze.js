@@ -1,5 +1,5 @@
 /*\
-title: blaze
+title: $:/plugins/vsivsi/meteor/blaze
 type: application/javascript
 module-type: widget
 

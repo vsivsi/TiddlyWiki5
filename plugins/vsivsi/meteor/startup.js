@@ -1,5 +1,5 @@
 /*\
-title: $:/library/startup.js
+title: $:/plugins/vsivsi/meteor/startup.js
 type: application/javascript
 
 Meteor client code to launch TiddlyWiki5

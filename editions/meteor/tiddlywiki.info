@@ -17,7 +17,7 @@
 			"--savetiddler", "$:/boot/bootprefix.js", "client/compatibility/bootprefix.js",
 			"--savetiddler", "$:/boot/boot.js", "client/compatibility/boot.js",
 			"--savetiddler", "$:/library/sjcl.js", "client/compatibility/sjcl.js",
-			"--savetiddler", "$:/library/startup.js", "client/startup.js"
+			"--savetiddler", "$:/plugins/vsivsi/meteor/startup.js", "client/startup.js"
 		]
 	}
 }
