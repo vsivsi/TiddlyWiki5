@@ -464,6 +464,11 @@ Remove any DOM nodes created by this widget or its children
 */
 Widget.prototype.removeChildDomNodes = function() {
 
+	// Ask the child widgets to delete their DOM nodes
+	$tw.utils.each(this.children,function(childWidget) {
+		childWidget.removeChildDomNodes();
+	});
+
 	// Call the destructor on this widget
 	this.destructor();
 
@@ -475,17 +480,13 @@ Widget.prototype.removeChildDomNodes = function() {
 		});
 		this.domNodes = [];
 	}
-
-	// Ask the child widgets to delete their DOM nodes
-	$tw.utils.each(this.children,function(childWidget) {
-		childWidget.removeChildDomNodes();
-	});
 };
 
 /*
 Remove any DOM nodes created by this widget or its children
 */
 Widget.prototype.destructor = function() {
+	// Stub -- Override in widgets that need state clean-up
 };
 
 /*

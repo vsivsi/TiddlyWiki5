@@ -1,5 +1,5 @@
 /*\
-title: blaze
+title: $:/plugins/vsivsi/meteor/blaze
 type: application/javascript
 module-type: widget
 
@@ -33,10 +33,22 @@ BlazeWidget.prototype.render = function(parent,nextSibling) {
 	this.computeAttributes();
 	this.execute();
 	var name = this.getAttribute("name",this.parseTreeNode.name || "");
-        var domNode = this.document.createElement("div");
-        domNode.setAttribute("class","blaze-widget");
-        parent.insertBefore(domNode,nextSibling);
-        this.view = Blaze.render(Template[name], domNode);
+	var data = this.getAttribute("data",this.parseTreeNode.data || "");
+	var domNode = this.document.createElement("div");
+	domNode.setAttribute("class","blaze-widget");
+	parent.insertBefore(domNode,nextSibling);
+	if (data) {
+		var dataObj = null
+		try {
+			// Try to make it an object from JSON
+			dataObj = JSON.parse(data);
+		} catch (e) {
+			dataObj = { data: data };
+		}
+		this.view = Blaze.renderWithData(Template[name], dataObj, domNode);
+	} else {
+		this.view = Blaze.render(Template[name], domNode);
+	}
 	this.renderChildren(domNode,null);
 	this.domNodes.push(domNode);
 };
@@ -45,7 +57,6 @@ BlazeWidget.prototype.render = function(parent,nextSibling) {
 Compute the internal state of the widget
 */
 BlazeWidget.prototype.execute = function() {
-   Session.set('count', Session.get('count')+1);
 };
 
 /*
@@ -65,7 +76,6 @@ BlazeWidget.prototype.refresh = function(changedTiddlers) {
 Implement a local destructor
 */
 BlazeWidget.prototype.destructor = function() {
-   console.log("Destroy everything!");
    Blaze.remove(this.view);
 }
 
