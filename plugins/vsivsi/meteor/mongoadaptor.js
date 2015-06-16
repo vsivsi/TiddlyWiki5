@@ -42,12 +42,16 @@ var _tiddlerSafe = function (twf) {
   return safe;
 };
 
-var _lookupTiddler = function (collection, title) {
-  doc = collection.findOne({title:title},{fields:{_id:1},reactive:false});
-  if (doc) {
-    return doc._id;
+var _lookupTiddler = function (collection, tiddler, tiddlerInfo) {
+  if (tiddlerInfo && tiddlerInfo.adaptorInfo && tiddlerInfo.adaptorInfo._id) {
+    return tiddlerInfo.adaptorInfo._id;
   } else {
-    return null;
+    doc = collection.findOne({title:tiddler.fields.title},{fields:{_id:1},reactive:false});
+    if (doc) {
+      return doc._id;
+    } else {
+      return null;
+    }
   }
 }
 
@@ -76,10 +80,13 @@ Returns an object storing any additional information required by the adaptor.
 
 MongoAdaptor.prototype.getTiddlerInfo = function(tiddler) {
   var self = this;
-  // doc = self.collection.findOne({title:tiddler.fields.title},{fields:{_id:1},reactive:false});
   console.log("Get info! Tiddler", tiddler);
-	// return doc;
-  return {};
+  var _id = _lookupTiddler(self.collection, tiddler);
+  if (_id) {
+    return { _id: doc._id };
+  } else {
+    return {};
+  }
 };
 
 // Not sure what these are for...
@@ -152,10 +159,10 @@ MongoAdaptor.prototype.saveTiddler = function(tiddler, callback, tiddlerInfo) {
 
   console.log("Save! Tiddler/Info:", twf, tiddlerInfo);
 
-  var _id = _lookupTiddler(self.collection, tiddler.fields.title);
+  var _id = _lookupTiddler(self.collection, tiddler, tiddlerInfo);
 
   if (_id) {
-    console.log("Updating!");
+    console.log("Updating!", _id);
     self.collection.update(_id, {$set:twf}, function(err, count) {
       if (count) {
         callback(null, { _id: _id }, 0);
@@ -169,7 +176,8 @@ MongoAdaptor.prototype.saveTiddler = function(tiddler, callback, tiddlerInfo) {
   } else {
     console.log("Inserting!");
     self.collection.insert(twf, function(err, _id) {
-      callback(err, {}, 0);
+      console.log("Inserted", _id);
+      callback(err, { _id: _id }, 0);
     });
   }
 };
@@ -192,7 +200,7 @@ callback	       Callback function invoked with parameter err,tiddlerFields
 MongoAdaptor.prototype.loadTiddler = function(title, callback) {
   var self = this;
   console.log("Load! Title:", title);
-  doc = self.collection.findOne({title:title},{fields:{_id:0},reactive:false});
+  doc = self.collection.findOne({title:title},{fields:{_id:0}, reactive:false});
 
   if (doc) {
     var twf = _mongoSafe(doc);
@@ -221,7 +229,7 @@ MongoAdaptor.prototype.deleteTiddler = function(title, callback, tiddlerInfo) {
     callback(err);
   };
   console.log("Delete! Title/Info:", title, tiddlerInfo);
-  var _id = _lookupTiddler(self.collection, title);
+  var _id = _lookupTiddler(self.collection, {fields:{title: title}}, tiddlerInfo);
 
   if (_id) {
     self.collection.remove(_id, _finish);
