@@ -61,7 +61,6 @@ function MongoAdaptor(options) {
 	this.wiki = options.wiki;
   if (typeof Mongo != 'undefined') {
     this.collection = new Mongo.Collection("tiddlers");
-    this.subscription = Meteor.subscribe('allTiddlers');
 	}
   // this.logger = new $tw.utils.Logger("Mongo");
 }
@@ -76,6 +75,7 @@ callback	   Callback function invoked with parameters err,isLoggedIn,username
 */
 
 MongoAdaptor.prototype.getStatus = function(callback) {
+  console.log("getStatus called!");
   callback(null,false,null);
 }
 
@@ -96,8 +96,10 @@ MongoAdaptor.prototype.getTiddlerInfo = function(tiddler) {
   console.log("Get info! Tiddler", tiddler);
   var _id = _lookupTiddler(self.collection, tiddler);
   if (_id) {
+    console.log("Found _id", _id);
     return { _id: doc._id };
   } else {
+    console.log("Not Found");
     return {};
   }
 };
@@ -141,15 +143,10 @@ callback	    Callback function invoked with parameter err,tiddlers, where tiddle
 */
 MongoAdaptor.prototype.getSkinnyTiddlers = function(callback) {
   var self = this;
-  Tracker.autorun(function (c) {
-    if (self.subscription.ready()) {
-      docs = self.collection.find({},{fields:{_id:0,text:0},reactive:false})
-                 .map(function (d) { return _tiddlerSafe(d); });
-      console.log("Got ", docs.length,"skinny tiddlers!");
-      callback(null, docs);
-      c.stop();
-    }
-  });
+  docs = self.collection.find({},{fields:{_id:0,text:0},reactive:false})
+             .map(function (d) { return _tiddlerSafe(d); });
+  console.log("Got ", docs.length,"skinny tiddlers!");
+  callback(null, docs);
 };
 
 /*
