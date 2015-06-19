@@ -67,6 +67,19 @@ function MongoAdaptor(options) {
 }
 
 /*
+getStatus(callback)
+
+Retrieves status information from the server. This method is optional.
+Parameter    Description
+==========================================
+callback	   Callback function invoked with parameters err,isLoggedIn,username
+*/
+
+MongoAdaptor.prototype.getStatus = function(callback) {
+  callback(null,false,null);
+}
+
+/*
 getTiddlerInfo(tiddler)
 
 Gets the supplemental information that the adaptor needs to keep track of for a particular tiddler. For example, the TiddlyWeb adaptor includes a bag field indicating the original bag of the tiddler.
