@@ -1,6 +1,6 @@
 title: $:/plugins/vsivsi/meteor/save/all
 
 \define saveMeteorTiddlerFilter()
-[is[tiddler]] -[prefix[$:/state/popup/]] -[[$:/StoryList]] -[[$:/HistoryList]] -[[$:/boot/boot.css]] -[type[application/javascript]library[yes]] -[[$:/boot/boot.js]] -[[$:/boot/bootprefix.js]] +[sort[title]]
+[is[tiddler]] -[prefix[$:/state/popup/]] -[[$:/StoryList]] -[[$:/HistoryList]] -[[$:/boot/boot.css]] +[sort[title]]
 \end
 {{$:/plugins/vsivsi/meteor/templates/tiddlywiki5.html}}
