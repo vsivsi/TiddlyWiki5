@@ -8,14 +8,18 @@ Meteor client code to launch TiddlyWiki5
 
 Meteor.startup(function () {
 
-  sub = Meteor.subscribe('allTiddlers');
+  allTiddlers = Meteor.subscribe('allTiddlers');
 
   Tracker.autorun(function (c) {
-    if (sub.ready()) {
-      var $tw = _bootprefix();
-      // $tw.boot.suppressBoot = true;
-      console.log("TW:", $tw);
-       _boot($tw);
+    if (allTiddlers.ready()) {
+      Meteor.setTimeout(function () {
+        // Escape the enclosing autorun
+        var $tw = _bootprefix();
+        // $tw.collection = new Mongo.Collection("tiddlers");
+        // $tw.boot.suppressBoot = true;
+        console.log("TW:", $tw);
+         _boot($tw);
+      },0);
       c.stop()
     }
   });

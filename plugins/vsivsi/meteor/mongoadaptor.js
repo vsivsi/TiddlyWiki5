@@ -58,10 +58,32 @@ var _lookupTiddler = function (collection, tiddler, tiddlerInfo) {
 function MongoAdaptor(options) {
 	var self = this;
   gorp = this;
+  console.log("In MongoAdaptor constructor", this);
 	this.wiki = options.wiki;
   if (typeof Mongo != 'undefined') {
     this.collection = new Mongo.Collection("tiddlers");
-	}
+    this.collection.find({}).observe({
+      added: function (doc) {
+        if ((!self.wiki.tiddlerExists(doc.title)) &&
+            ((!doc["draft:title"])||(!doc["draft:of"]))) {
+          console.warn("Added:", doc.title);
+          self.wiki.addTiddler(_tiddlerSafe(doc));
+        }
+      },
+      changed: function (doc, oldDoc) {
+        if ((!doc["draft:title"])||(!doc["draft:of"])) {
+          console.warn("Changed:", doc.title);
+          self.wiki.addTiddler(_tiddlerSafe(doc));
+        }
+      },
+      removed: function (doc) {
+        if (self.wiki.tiddlerExists(doc.title)) {
+          console.warn("Removed:", doc.title);
+          self.wiki.deleteTiddler(doc.title);
+        }
+      }
+    });
+  }
   // this.logger = new $tw.utils.Logger("Mongo");
 }
 
@@ -173,6 +195,7 @@ MongoAdaptor.prototype.saveTiddler = function(tiddler, callback, tiddlerInfo) {
 
   if (_id) {
     console.log("Updating!", _id);
+    delete twf._id
     self.collection.update(_id, {$set:twf}, function(err, count) {
       if (count) {
         callback(null, { _id: _id }, 0);
@@ -216,7 +239,8 @@ MongoAdaptor.prototype.loadTiddler = function(title, callback) {
     var twf = _mongoSafe(doc);
     callback(null, twf);
   } else {
-    callback(new Error("Tiddler ", title, "not found!"));
+    callback(null,null);
+    // callback(new Error("Tiddler ", title, "not found!"));
   }
 };
 
@@ -244,7 +268,8 @@ MongoAdaptor.prototype.deleteTiddler = function(title, callback, tiddlerInfo) {
   if (_id) {
     self.collection.remove(_id, _finish);
   } else {
-    _finish(new Error("deleteTiddler for:", title, "couldn't find document"));
+    _finish(null);
+    // _finish(new Error("deleteTiddler for:", title, "couldn't find document"));
   }
 };
 
