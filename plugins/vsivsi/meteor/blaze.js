@@ -37,17 +37,21 @@ BlazeWidget.prototype.render = function(parent,nextSibling) {
 	var domNode = this.document.createElement("div");
 	domNode.setAttribute("class","blaze-widget");
 	parent.insertBefore(domNode,nextSibling);
-	if (data) {
-		var dataObj = null
-		try {
-			// Try to make it an object from JSON
-			dataObj = JSON.parse(data);
-		} catch (e) {
-			dataObj = { data: data };
+	if (Blaze.isTemplate(Template[name])) {
+		if (data) {
+			var dataObj = null
+			try {
+				// Try to make it an object from JSON
+				dataObj = JSON.parse(data);
+			} catch (e) {
+				dataObj = { data: data };
+			}
+			this.view = Blaze.renderWithData(Template[name], dataObj, domNode);
+		} else {
+			this.view = Blaze.render(Template[name], domNode);
 		}
-		this.view = Blaze.renderWithData(Template[name], dataObj, domNode);
 	} else {
-		this.view = Blaze.render(Template[name], domNode);
+		console.warn("No Blaze template named",name,"was found");
 	}
 	this.renderChildren(domNode,null);
 	this.domNodes.push(domNode);
@@ -76,7 +80,9 @@ BlazeWidget.prototype.refresh = function(changedTiddlers) {
 Implement a local destructor
 */
 BlazeWidget.prototype.destructor = function() {
-   Blaze.remove(this.view);
+	if (this.view) {
+  	Blaze.remove(this.view);
+	}
 }
 
 exports.blaze = BlazeWidget;
