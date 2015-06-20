@@ -10,17 +10,17 @@ Meteor.startup(function () {
 
   allTiddlers = Meteor.subscribe('allTiddlers');
 
-  Tracker.autorun(function (c) {
-    if (allTiddlers.ready()) {
-      Meteor.setTimeout(function () {
-        // Escape the enclosing autorun
+  // Tracker.autorun(function (c) {
+  //   if (allTiddlers.ready()) {
+  //     Meteor.setTimeout(function () {
+  //       // Escape the enclosing autorun
         var $tw = _bootprefix();
         // $tw.collection = new Mongo.Collection("tiddlers");
         // $tw.boot.suppressBoot = true;
         console.log("TW:", $tw);
          _boot($tw);
-      },0);
-      c.stop()
-    }
-  });
+  //     },0);
+  //     c.stop()
+  //   }
+  // });
 });
