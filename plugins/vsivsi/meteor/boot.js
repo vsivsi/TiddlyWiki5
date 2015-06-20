@@ -221,6 +221,28 @@ $tw.utils.pad = function(value,length) {
 	return s;
 };
 
+// Convert a Mongo ObjectID to a 24 char hex string
+$tw.utils.stringifyID = function(value) {
+  if (value instanceof Mongo.ObjectID) {
+	  return value.valueOf();
+  } else {
+    console.error("Improper MongoID in stringifyID", value);
+    return null;
+  }
+};
+
+// Parse a date from a UTC YYYYMMDDHHMMSSmmm format string
+$tw.utils.parseID = function(value) {
+	if((typeof value === "string")&&(value.length === 24)) {
+		return new Mongo.ObjectID(value);
+	} else if(value instanceof Mongo.ObjectID) {
+		return value;
+	} else {
+    console.error("Improper MongoID in parseID", value);
+		return null;
+	}
+};
+
 // Convert a date into UTC YYYYMMDDHHMMSSmmm format
 $tw.utils.stringifyDate = function(value) {
 	return value.getUTCFullYear() +
@@ -780,7 +802,7 @@ $tw.modules.createClassesFromModules = function(moduleType,subType,baseClass) {
 /////////////////////////// Barebones tiddler object
 
 /*
-Construct a tiddler object from a hashmap of tiddler fields. If multiple hasmaps are provided they are merged,
+Construct a tiddler object from a hashmap of tiddler fields. If multiple hashmaps are provided they are merged,
 taking precedence to the right
 */
 $tw.Tiddler = function(/* [fields,] fields */) {
@@ -810,6 +832,13 @@ $tw.Tiddler = function(/* [fields,] fields */) {
 			}
 		}
 	}
+  if (!this.fields._id) {
+    // Ensure that every tiddler has a unique ID
+    // var value = new Mongo.ObjectID();
+    var value = this.fields.title;
+    Object.freeze(value);
+    this.fields._id = value;
+  }
 	// Freeze the tiddler against modification
 	Object.freeze(this.fields);
 };
@@ -821,6 +850,11 @@ $tw.Tiddler.prototype.hasField = function(field) {
 /*
 Register and install the built in tiddler field modules
 */
+// $tw.modules.define("$:/boot/tiddlerfields/_id","tiddlerfield",{
+// 	name: "_id",
+// 	parse: $tw.utils.parseID,
+// 	stringify: $tw.utils.stringifyID
+// });
 $tw.modules.define("$:/boot/tiddlerfields/modified","tiddlerfield",{
 	name: "modified",
 	parse: $tw.utils.parseDate,
@@ -857,26 +891,76 @@ shadowTiddlers: Array of shadow tiddlers to be added
 $tw.Wiki = function(options) {
 	options = options || {};
 	var self = this,
-		tiddlers = Object.create(null), // Hashmap of tiddlers
+		// tiddlers = Object.create(null), // Hashmap of tiddlers
 		pluginTiddlers = [], // Array of tiddlers containing registered plugins, ordered by priority
 		pluginInfo = Object.create(null), // Hashmap of parsed plugin content
 		shadowTiddlers = options.shadowTiddlers || Object.create(null); // Hashmap by title of {source:, tiddler:}
 
+  var _mongoSafe = function (twf) {
+    var safe = {}
+    Object.keys(twf).forEach(function (key) {
+      var nk = key.replace(/[.]/g,":");
+      safe[nk] = twf[key];
+    });
+    return safe;
+  };
+
+  var _tiddlerSafe = function (twf) {
+    var safe = {}
+    Object.keys(twf).forEach(function (key) {
+      var nk = key.replace(/[^a-z_\-]/g,".");
+      safe[nk] = twf[key];
+    });
+    return safe;
+  };
+
+  self.collection = $tw.collection;
+  self.observe = self.collection.find({}).observe({
+    added: function (unsafe) {
+      var doc = _tiddlerSafe(unsafe);
+      var title = doc.title;
+      console.warn("Added:", title);
+      // tiddlers[title] = new $tw.Tiddler(doc);
+      self.clearCache(title);
+      self.clearGlobalCache();
+      self.enqueueTiddlerEvent(title);
+    },
+    changed: function (newDoc, oldDoc) {
+      var doc = _tiddlerSafe(newDoc);
+      var title = doc.title;
+      console.warn("Changed:", title);
+      // tiddlers[title] = new $tw.Tiddler(doc);
+      self.clearCache(title);
+      self.clearGlobalCache();
+      self.enqueueTiddlerEvent(title);
+    },
+    removed: function (doc) {
+      var title = doc.title;
+      console.warn("Removed:", doc.title);
+      // delete tiddlers[title];
+      self.clearCache(title);
+      self.clearGlobalCache();
+      self.enqueueTiddlerEvent(title,true);
+    }
+  });
 	// Add a tiddler to the store
 	this.addTiddler = function(tiddler) {
 		if(!(tiddler instanceof $tw.Tiddler)) {
 			tiddler = new $tw.Tiddler(tiddler);
 		}
-		// Save the tiddler
+    // Save the tiddler
 		if(tiddler) {
-			var title = tiddler.fields.title;
+      var safe = _mongoSafe(tiddler.fields);
+			var title = safe.title;
 			if(title) {
-// Uncomment the following line for detailed logs of all tiddler writes
-// console.log("Adding",title,tiddler)
-				tiddlers[title] = tiddler;
-				this.clearCache(title);
-				this.clearGlobalCache();
-				this.enqueueTiddlerEvent(title);
+        if (self.tiddlerExists(title)) {
+          console.log("Adding (update)",title);
+          delete safe._id;
+          self.collection.update(title,{$set: safe});
+        } else {
+          console.log("Adding (insert)",title);
+          self.collection.insert(safe);
+        }
 			}
 		}
 	};
@@ -884,17 +968,18 @@ $tw.Wiki = function(options) {
 	// Delete a tiddler
 	this.deleteTiddler = function(title) {
 // Uncomment the following line for detailed logs of all tiddler deletions
-// console.log("Deleting",title,tiddler)
-		delete tiddlers[title];
-		this.clearCache(title);
-		this.clearGlobalCache();
-		this.enqueueTiddlerEvent(title,true);
+    console.log("Deleting",title);
+    self.collection.remove({_id:title});
 	};
 
 	// Get a tiddler from the store
 	this.getTiddler = function(title) {
-		var t = tiddlers[title];
-		if(t instanceof $tw.Tiddler) {
+    var unsafe = self.collection.findOne({_id:title});
+    var t = null;
+    if (unsafe) {
+      t = new $tw.Tiddler(_tiddlerSafe(unsafe));
+    }
+    if(t instanceof $tw.Tiddler) {
 			return t;
 		} else if(title !== undefined && Object.prototype.hasOwnProperty.call(shadowTiddlers,title)) {
 			return shadowTiddlers[title].tiddler;
@@ -905,14 +990,15 @@ $tw.Wiki = function(options) {
 
 	// Get an array of all tiddler titles
 	this.allTitles = function() {
-		return Object.keys(tiddlers);
-	};
+    var allTitles = Object.keys(tiddlers);
+	  return self.collection.find({},{fields:{_id:0,title:1}})
+                         .map(function(d) { return d.title; });
+  };
 
 	// Iterate through all tiddler titles
 	this.each = function(callback) {
-		for(var title in tiddlers) {
-			callback(tiddlers[title],title);
-		}
+    self.collection.find({})
+       .forEach(function(d) {callback(new $tw.Tiddler(_tiddlerSafe(d)),d.title);});
 	};
 
 	// Get an array of all shadow tiddler titles
@@ -930,11 +1016,9 @@ $tw.Wiki = function(options) {
 
 	// Iterate through all tiddlers and then the shadows
 	this.eachTiddlerPlusShadows = function(callback) {
-		for(var title in tiddlers) {
-			callback(tiddlers[title],title);
-		}
+    self.each(callback);
 		for(var title in shadowTiddlers) {
-			if(!Object.prototype.hasOwnProperty.call(tiddlers,title)) {
+			if(!self.tiddlerExists(title)) {
 				var shadowInfo = shadowTiddlers[title];
 				callback(shadowInfo.tiddler,title);
 			}
@@ -944,24 +1028,20 @@ $tw.Wiki = function(options) {
 	// Iterate through all the shadows and then the tiddlers
 	this.eachShadowPlusTiddlers = function(callback) {
 		for(var title in shadowTiddlers) {
-			if(Object.prototype.hasOwnProperty.call(tiddlers,title)) {
-				callback(tiddlers[title],title);
-			} else {
-				var shadowInfo = shadowTiddlers[title];
-				callback(shadowInfo.tiddler,title);
-			}
+      var tiddler = self.getTiddler(title);
+      callback(tiddler,title);
 		}
-		for(var title in tiddlers) {
-			if(!Object.prototype.hasOwnProperty.call(shadowTiddlers,title)) {
-				callback(tiddlers[title],title);
-			}
-		}
-
+    self.each(function(tiddler,title) {
+      if(!Object.prototype.hasOwnProperty.call(shadowTiddlers,title)) {
+        callback(tiddler,title);
+      }
+    });
 	};
 
 	// Test for the existence of a tiddler (excludes shadow tiddlers)
 	this.tiddlerExists = function(title) {
-		return !!$tw.utils.hop(tiddlers,title);
+    var tiddler = self.collection.findOne({_id:title});
+    return tiddler ? true : false;
 	};
 
 	// Determines if a tiddler is a shadow tiddler, regardless of whether it has been overridden by a real tiddler
@@ -978,13 +1058,11 @@ $tw.Wiki = function(options) {
 
 	// Read plugin info for all plugins
 	this.readPluginInfo = function() {
-		for(var title in tiddlers) {
-			var tiddler = tiddlers[title];
-			if(tiddler.fields.type === "application/json" && tiddler.hasField("plugin-type")) {
-				pluginInfo[tiddler.fields.title] = JSON.parse(tiddler.fields.text);
-			}
-
-		}
+    self.each(function (tiddler, title) {
+      if(tiddler.fields.type === "application/json" && tiddler.hasField("plugin-type")) {
+      	pluginInfo[tiddler.fields.title] = JSON.parse(tiddler.fields.text);
+      }
+    });
 	};
 
 	// Get plugin info for a plugin
@@ -994,8 +1072,7 @@ $tw.Wiki = function(options) {
 
 	// Register the plugin tiddlers of a particular type, optionally restricting registration to an array of tiddler titles. Return the array of titles affected
 	this.registerPluginTiddlers = function(pluginType,titles) {
-		var self = this,
-			registeredTitles = [],
+		var registeredTitles = [],
 			checkTiddler = function(tiddler,title) {
 				if(tiddler && tiddler.fields.type === "application/json" && tiddler.fields["plugin-type"] === pluginType) {
 					var disablingTiddler = self.getTiddler("$:/config/Plugins/Disabled/" + title);
@@ -1010,7 +1087,7 @@ $tw.Wiki = function(options) {
 				checkTiddler(self.getTiddler(title),title);
 			});
 		} else {
-			this.each(function(tiddler,title) {
+			self.each(function(tiddler,title) {
 				checkTiddler(tiddler,title);
 			});
 		}
@@ -1019,8 +1096,7 @@ $tw.Wiki = function(options) {
 
 	// Unregister the plugin tiddlers of a particular type, returning an array of the titles affected
 	this.unregisterPluginTiddlers = function(pluginType) {
-		var self = this,
-			titles = [];
+		var	titles = [];
 		// Remove any previous registered plugins of this type
 		for(var t=pluginTiddlers.length-1; t>=0; t--) {
 			var tiddler = pluginTiddlers[t];
@@ -1034,7 +1110,6 @@ $tw.Wiki = function(options) {
 
 	// Unpack the currently registered plugins, creating shadow tiddlers for their constituent tiddlers
 	this.unpackPluginTiddlers = function() {
-		var self = this;
 		// Sort the plugin titles by the `plugin-priority` field
 		pluginTiddlers.sort(function(a,b) {
 			if("plugin-priority" in a.fields && "plugin-priority" in b.fields) {
