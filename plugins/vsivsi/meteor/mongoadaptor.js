@@ -30,6 +30,8 @@ var _mongoSafe = function (twf) {
     var nk = key.replace(/[.]/g,":");
     safe[nk] = twf[key];
   });
+  safe._id = safe.title
+  delete safe.title
   return safe;
 };
 
@@ -39,19 +41,17 @@ var _tiddlerSafe = function (twf) {
     var nk = key.replace(/[^a-z_\-]/g,".");
     safe[nk] = twf[key];
   });
+  safe.title = safe._id
+  delete safe._id
   return safe;
 };
 
-var _lookupTiddler = function (collection, tiddler, tiddlerInfo) {
-  if (tiddlerInfo && tiddlerInfo.adaptorInfo && tiddlerInfo.adaptorInfo._id) {
-    return tiddlerInfo.adaptorInfo._id;
+var _lookupTiddler = function (collection, title) {
+  doc = collection.findOne({_id:title},{fields:{_id:1},reactive:false});
+  if (doc) {
+    return true;
   } else {
-    doc = collection.findOne({title:tiddler.fields.title},{fields:{_id:1},reactive:false});
-    if (doc) {
-      return doc._id;
-    } else {
-      return null;
-    }
+    return null;
   }
 }
 
@@ -64,22 +64,22 @@ function MongoAdaptor(options) {
     this.collection = new Mongo.Collection("tiddlers");
     this.collection.find({}).observe({
       added: function (doc) {
-        if ((!self.wiki.tiddlerExists(doc.title)) &&
-            ((!doc["draft:title"])||(!doc["draft:of"]))) {
-          console.warn("Added:", doc.title);
+        // if ((!self.wiki.tiddlerExists(doc.title)) &&
+        //     ((!doc["draft:title"])||(!doc["draft:of"]))) {
+          console.warn("Added:", doc._id);
           self.wiki.addTiddler(_tiddlerSafe(doc));
-        }
+        // }
       },
       changed: function (doc, oldDoc) {
-        if ((!doc["draft:title"])||(!doc["draft:of"])) {
-          console.warn("Changed:", doc.title);
+        // if ((!doc["draft:title"])||(!doc["draft:of"])) {
+          console.warn("Changed:", doc._id);
           self.wiki.addTiddler(_tiddlerSafe(doc));
-        }
+        // }
       },
       removed: function (doc) {
-        if (self.wiki.tiddlerExists(doc.title)) {
-          console.warn("Removed:", doc.title);
-          self.wiki.deleteTiddler(doc.title);
+        if (self.wiki.tiddlerExists(doc._id)) {
+          console.warn("Removed:", doc._id);
+          self.wiki.deleteTiddler(doc._id);
         }
       }
     });
@@ -116,13 +116,13 @@ Returns an object storing any additional information required by the adaptor.
 MongoAdaptor.prototype.getTiddlerInfo = function(tiddler) {
   var self = this;
   console.log("Get info! Tiddler", tiddler);
-  var _id = _lookupTiddler(self.collection, tiddler);
-  if (_id) {
-    console.log("Found _id", _id);
-    return { _id: doc._id };
+  var exists = _lookupTiddler(self.collection, tiddler);
+  if (exists) {
+    console.log("Found tiddler", tiddler.fields.title);
+    return {};
   } else {
     console.log("Not Found");
-    return {};
+    return null;
   }
 };
 
@@ -165,10 +165,11 @@ callback	    Callback function invoked with parameter err,tiddlers, where tiddle
 */
 MongoAdaptor.prototype.getSkinnyTiddlers = function(callback) {
   var self = this;
-  docs = self.collection.find({},{fields:{_id:0,text:0},reactive:false})
+  docs = self.collection.find({},{fields:{text:0},reactive:false})
              .map(function (d) { return _tiddlerSafe(d); });
   console.log("Got ", docs.length,"skinny tiddlers!");
-  callback(null, docs);
+  // callback(null, docs);
+  callback(null, []);
 };
 
 /*
@@ -188,29 +189,34 @@ MongoAdaptor.prototype.saveTiddler = function(tiddler, callback, tiddlerInfo) {
   var self = this;
 
   var twf = _mongoSafe(tiddler.fields);
-
+  var title = tiddler.fields.title;
   console.log("Save! Tiddler/Info:", twf, tiddlerInfo);
 
-  var _id = _lookupTiddler(self.collection, tiddler, tiddlerInfo);
+  var exists = _lookupTiddler(self.collection, title);
 
-  if (_id) {
-    console.log("Updating!", _id);
+  if (exists) {
+    console.log("Updating!");
     delete twf._id
-    self.collection.update(_id, {$set:twf}, function(err, count) {
+    self.collection.update(title, {$set:twf}, function(err, count) {
       if (count) {
-        callback(null, { _id: _id }, 0);
+        callback(null, {}, 0);
       } else if (err) {
          callback(err);
       } else {  // No update occurred
-        console.error("Update failed for id:", _id);
-        callback(new Error("Update failed for id:", _id));
+        console.error("Update failed for:", title);
+        callback(new Error("Update failed for:", title));
       }
     });
   } else {
     console.log("Inserting!");
     self.collection.insert(twf, function(err, _id) {
-      console.log("Inserted", _id);
-      callback(err, { _id: _id }, 0);
+      if (_id) {
+        console.log("Inserted", _id);
+        callback(err, {}, 0);
+      } else {
+        console.error("Insert failed for:", title);
+        callback(err);
+      }
     });
   }
 };
@@ -233,11 +239,9 @@ callback	       Callback function invoked with parameter err,tiddlerFields
 MongoAdaptor.prototype.loadTiddler = function(title, callback) {
   var self = this;
   console.log("Load! Title:", title);
-  doc = self.collection.findOne({title:title},{fields:{_id:0}, reactive:false});
-
+  doc = self.collection.findOne(title,{reactive:false});
   if (doc) {
-    var twf = _mongoSafe(doc);
-    callback(null, twf);
+    callback(null, _mongoSafe(doc));
   } else {
     callback(null,null);
     // callback(new Error("Tiddler ", title, "not found!"));
@@ -263,10 +267,10 @@ MongoAdaptor.prototype.deleteTiddler = function(title, callback, tiddlerInfo) {
     callback(err);
   };
   console.log("Delete! Title/Info:", title, tiddlerInfo);
-  var _id = _lookupTiddler(self.collection, {fields:{title: title}}, tiddlerInfo);
+  var exists = _lookupTiddler(self.collection, title);
 
-  if (_id) {
-    self.collection.remove(_id, _finish);
+  if (exists) {
+    self.collection.remove(title, _finish);
   } else {
     _finish(null);
     // _finish(new Error("deleteTiddler for:", title, "couldn't find document"));
