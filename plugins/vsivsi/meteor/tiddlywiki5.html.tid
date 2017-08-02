@@ -1,4 +1,4 @@
-title: $:/core/templates/tiddlywiki5.html
+title: $:/plugins/vsivsi/meteor/templates/tiddlywiki5.html
 
 \rules only filteredtranscludeinline transcludeinline
 {{$:/core/templates/MOTW.html}}
@@ -32,5 +32,5 @@ title: $:/core/templates/tiddlywiki5.html
 </div>
 </noscript>
 <!--~~ Ordinary tiddlers ~~-->
-{{$:/core/templates/store.area.template.html}}
+{{$:/plugins/vsivsi/meteor/templates/store.area.template.html}}
 </body>

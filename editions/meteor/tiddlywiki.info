@@ -13,7 +13,7 @@
 	],
 	"build": {
 		"index": [
-			"--rendertiddler", "$:/core/save/all", "client/index.html", "text/plain",
+			"--rendertiddler", "$:/plugins/vsivsi/meteor/save/all", "client/index.html", "text/plain",
 			"--savetiddler", "$:/boot/bootprefix.js", "client/compatibility/bootprefix.js",
 			"--savetiddler", "$:/boot/boot.js", "client/compatibility/boot.js",
 			"--savetiddler", "$:/library/sjcl.js", "client/compatibility/sjcl.js",
